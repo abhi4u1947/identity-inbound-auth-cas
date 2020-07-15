@@ -56,12 +56,14 @@ import java.util.Map;
 
 
 public class CASSSOUtil {
+
     protected static final String validationResponse = "<cas:serviceResponse xmlns:cas=\"http://www.yale.edu/tp/cas\">%s</cas:serviceResponse>";
     private static final String success = "<cas:authenticationSuccess>%s</cas:authenticationSuccess>";
     private static final String userTemplate = "<cas:user>%s</cas:user>";
     private static final String attributesWrapper = "<cas:attributes>%s</cas:attributes>";
     private static final String attributeTemplate = "<cas:%s>%s</cas:%s>";
     private static final Log log = LogFactory.getLog(CASSSOUtil.class);
+    private static final String USERNAME_CLAIM = "http://wso2.org/claims/username";
     private static HttpService httpService;
     private static BundleContext bundleContext;
     private static ConfigurationContextService configCtxService;
@@ -371,9 +373,13 @@ public class CASSSOUtil {
                     if (log.isDebugEnabled()) {
                         log.debug(entry.getKey().getLocalClaim().getClaimUri() + " ==> " + entry.getValue());
                     }
-                    if (!entry.getKey().getLocalClaim().getClaimUri().equals(IdentityCoreConstants
-                            .MULTI_ATTRIBUTE_SEPARATOR)) {
-                        requestedClaims.put(entry.getKey().getLocalClaim().getClaimUri(), entry.getValue());
+                    if (USERNAME_CLAIM.equals(entry.getKey().getLocalClaim().getClaimUri())) {
+                        requestedClaims.put(entry.getKey().getLocalClaim().getClaimUri(), result.getSubject().getUserName());
+                    } else {
+                        if (!entry.getKey().getLocalClaim().getClaimUri().equals(IdentityCoreConstants
+                                .MULTI_ATTRIBUTE_SEPARATOR)) {
+                            requestedClaims.put(entry.getKey().getLocalClaim().getClaimUri(), entry.getValue());
+                        }
                     }
                 }
             } else {
@@ -403,7 +409,8 @@ public class CASSSOUtil {
         Map<String, String> claims = CASSSOUtil.getUserClaimValues(result, claimMapping, null);
         for (Map.Entry<String, String> entry : claims.entrySet()) {
             String entryKey = entry.getKey().replaceAll(" ", "_");
-            attributesXml.append(String.format(attributeTemplate, entryKey, entry.getValue(), entryKey));
+            String entryKeyLastSegment = entryKey.contains("/") ? entryKey.replaceAll(".*/", "") : entryKey;
+            attributesXml.append(String.format(attributeTemplate, entryKeyLastSegment, entry.getValue(), entryKeyLastSegment));
         }
         if (log.isDebugEnabled()) {
             log.debug("attributesXml:\n" + attributesXml);
